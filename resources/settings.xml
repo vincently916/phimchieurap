@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<settings>
+	<category label="Downloads">
+		<setting id="downloads" type="bool" label="Downloads" default="false" />
+		<setting type="sep" />
+		<setting id="movie.download.path" type="folder" label="Download Path" enable="!eq(-2,false)" default="" />
+		<setting type="lsep" label="[CR]" />
+		<setting type="lsep" label="32351" />
+		<setting type="lsep" label="32352" />
+	</category>
+</settings>
