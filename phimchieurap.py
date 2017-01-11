@@ -6,6 +6,10 @@ import re
 from bs4 import BeautifulSoup
 import urllib,urllib2,os,sys
 import urlparse
+#import ssl
+#context = ssl.create_default_context(Purpose.CLIENT_AUTH)
+#context.options = ssl.PROTOCOL_TLSv1
+#context.options &= ~ssl.OP_NO_SSLv3
 
 ######################DEFINE FUNCTIONS###################################
 
@@ -13,7 +17,7 @@ def getHTML(url):
   req = urllib2.Request(url)
   req.add_unredirected_header('User-agent','Mozilla/5.0')
   try:
-     response = urllib2.urlopen(req).read()
+     response = urllib2.urlopen(req)
   except urllib2.HTTPError, e:
      response = e.getcode()
   return response
@@ -31,15 +35,15 @@ def addFolder(url):
     foldername = u' '.join(item.a.get('title')).encode('utf-8').strip()
     pageurl = item.a.get('href')
     img = item.img.get('src')
-    url = build_url({'mode': 'folder', 'foldername': foldername,'pageurl': pageurl,'image': img})
+    url = build_url({'mode': 'folder', 'foldername': foldername,'pageurl': pageurl})
     li = xbmcgui.ListItem(foldername, iconImage=img)
     xbmcplugin.addDirectoryItem(handle=addon_handle, url=url,listitem=li, isFolder=True)
   for item in pagination.select('a'):
-     pageurl = item['href']
-     foldername = "Page " + str(item.contents[0])
-     url = build_url({'mode': 'folder', 'foldername': foldername,'pageurl': pageurl})
-     li = xbmcgui.ListItem(foldername, iconImage='DefaultFolder.png')
-     xbmcplugin.addDirectoryItem(handle=addon_handle, url=url,listitem=li, isFolder=True)	
+    pageurl = item['href']
+    foldername = "Page " + str(item.contents[0])
+    url = build_url({'mode': 'folder', 'foldername': foldername,'pageurl': pageurl})
+    li = xbmcgui.ListItem(foldername, iconImage='DefaultFolder.png')
+    xbmcplugin.addDirectoryItem(handle=addon_handle, url=url,listitem=li, isFolder=True)	
   xbmcplugin.endOfDirectory(addon_handle)
 
 #######################END FUNCTION#################################################
@@ -68,29 +72,35 @@ elif mode[0] == 'folder':
    if foldername[:4] == "Page":
       addFolder(pageurl)
    else:
-    html = getHTML(pageurl)
-    img = args['image'][0]
-    tempLink = re.compile('<a class="btn-watch" href="(.+?)"').findall(html)
+    html = BeautifulSoup(getHTML(pageurl),"html.parser")
+    
+    #tempLink = re.compile('<a class="btn-watch" href="(.+?)"').findall(html)
+    tempLink = html.find('a',class_='btn-watch').get('href')
+    
     verify = "javascript:alert"
     confirm = [x for x in tempLink if verify in x] 
     if len(confirm) == 0:
    
-      html2 = getHTML(tempLink[0])
-      tempLink2 = re.compile('<script type="text/javascript" src="(.+?)"></script>').findall(html2)
-      search = "grab."
-      result = [s for s in tempLink2 if search in s]
-      if len(result) > 0:
-       html3 = getHTML(result[0])
+      html2 = BeautifulSoup(getHTML(tempLink),"html.parser")
+      #tempLink2 = re.compile('<script type="text/javascript" src="(.+?)"></script>').findall(html2)
+      tempLink2 = html2.find_all('script',type='text/javascript')
+      
+      
+      if tempLink2[6].get('src')[8:12] == 'grab':
+       httpsLink = tempLink2[6].get('src')
+       httpLink = httpsLink[0:4] + httpsLink[5:]
+       html3 = BeautifulSoup(getHTML(httpLink),"html.parser")
        if html3 != 404:
         
-           filelink = re.compile('"file":"(.+?)","label"').findall(html3)
+           filelink = re.compile('"file":"(.+?)"').findall(html3.text)
           
           
            if len(filelink) >= 1:
-             link  = filelink[len(filelink)-1].replace('\\','').strip('"')
-             li = xbmcgui.ListItem(foldername, iconImage=img)
-			 #li = xbmcgui.ListItem(foldername, iconImage='DefaultVideo.png')
+             tlink  = str(filelink[0].replace('\\','').strip('"'))
+             link = tlink.replace(';','') 
+             li = xbmcgui.ListItem(foldername, iconImage='DefaultVideo.png')
              xbmcplugin.addDirectoryItem(handle=addon_handle, url=link, listitem=li)
 
 
 xbmcplugin.endOfDirectory(addon_handle)
+
